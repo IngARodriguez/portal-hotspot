@@ -1,0 +1,21 @@
+{
+  "name": "portal-hotspot",
+  "version": "1.0.0",
+  "description": "Servidor interceptor de captive portal para redes WiFi. Redirige las peticiones de verificación de internet de iOS, Android y Windows a una página personalizada.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "captive-portal",
+    "hotspot",
+    "wifi",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
