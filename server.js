@@ -22,6 +22,21 @@ const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PORT = process.env.PORT || 3000;
 
 // ============================================
+// Validar variables de entorno obligatorias
+// ============================================
+const variablesFaltantes = [];
+if (!SUPABASE_URL) variablesFaltantes.push('SUPABASE_URL');
+if (!SUPABASE_KEY) variablesFaltantes.push('SUPABASE_KEY');
+if (!ACCESS_TOKEN) variablesFaltantes.push('ACCESS_TOKEN');
+
+if (variablesFaltantes.length > 0) {
+  console.error('Error: Faltan variables de entorno obligatorias:');
+  variablesFaltantes.forEach((v) => console.error(`  - ${v}`));
+  console.error('\nConfigúralas en el archivo .env o en el panel de tu hosting (ej: Render).');
+  process.exit(1);
+}
+
+// ============================================
 // Inicializar cliente de Supabase
 // ============================================
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
