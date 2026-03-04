@@ -1,79 +1,127 @@
 // ============================================
-// server.js - Servidor interceptor de Captive Portal
+// server.js - Servidor de subida de archivos
 // ============================================
-// Intercepta las peticiones automáticas de verificación de internet
-// que realizan iOS, Android y Windows al conectarse a una red WiFi,
-// y redirige al usuario a una página de bienvenida personalizada.
+// Servidor Express que permite subir archivos a Supabase Storage
+// protegido por autenticación mediante token en query params.
 // ============================================
 
 require('dotenv').config();
 const express = require('express');
+const multer = require('multer');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
+
+// ============================================
+// Variables de entorno
+// ============================================
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PORT = process.env.PORT || 3000;
 
 // ============================================
-// Rutas de detección de Captive Portal
+// Inicializar cliente de Supabase
 // ============================================
-// Cada sistema operativo hace peticiones a URLs específicas
-// para verificar si hay acceso a internet. Al interceptarlas
-// y responder con un redirect, el dispositivo muestra automáticamente
-// la página del portal cautivo.
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- iOS (versiones actuales) ---
-app.get('/hotspot-detect.html', (_req, res) => {
-  res.redirect(301, '/portal');
-});
+// ============================================
+// Configurar Multer (almacenamiento en memoria)
+// ============================================
+// Los archivos se mantienen en memoria como Buffer
+// antes de ser enviados a Supabase Storage.
+const upload = multer({ storage: multer.memoryStorage() });
 
-app.get('/success.txt', (_req, res) => {
-  res.redirect(301, '/portal');
-});
+// ============================================
+// Middleware de autenticación por token
+// ============================================
+// Verifica que el query param "token" coincida con ACCESS_TOKEN.
+// Se aplica a TODAS las rutas del servidor.
+app.use((req, res, next) => {
+  const token = req.query.token;
 
-app.get('/canonical.html', (_req, res) => {
-  res.redirect(301, '/portal');
-});
+  if (token !== ACCESS_TOKEN) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Acceso no autorizado'
+    });
+  }
 
-// --- iOS (versiones antiguas) ---
-app.get('/library/test/success.html', (_req, res) => {
-  res.redirect(301, '/portal');
-});
-
-// --- Android ---
-app.get('/generate_204', (_req, res) => {
-  res.redirect(301, '/portal');
-});
-
-// --- Windows ---
-app.get('/connecttest.txt', (_req, res) => {
-  res.redirect(301, '/portal');
-});
-
-app.get('/ncsi.txt', (_req, res) => {
-  res.redirect(301, '/portal');
+  next();
 });
 
 // ============================================
-// Archivos estáticos del portal
+// Ruta GET /portal → Sirve la página principal
 // ============================================
-// Sirve el contenido de la carpeta /public bajo la ruta /portal.
-// Esto incluye el index.html con la página de bienvenida.
-app.use('/portal', express.static(path.join(__dirname, 'public')));
+app.get('/portal', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ============================================
+// Ruta POST /upload → Subir archivos a Supabase
+// ============================================
+// Acepta hasta 10 archivos simultáneos con el campo "archivos".
+// Cada archivo se sube al bucket "archivos" en Supabase Storage
+// con un nombre único basado en timestamp + nombre original.
+app.post('/upload', upload.array('archivos', 10), async (req, res) => {
+  try {
+    // Verificar que se recibieron archivos
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'No se recibieron archivos'
+      });
+    }
+
+    const nombresSubidos = [];
+
+    // Subir cada archivo a Supabase Storage
+    for (const archivo of req.files) {
+      const nombreArchivo = `${Date.now()}-${archivo.originalname}`;
+
+      const { error } = await supabase.storage
+        .from('archivos')
+        .upload(nombreArchivo, archivo.buffer, {
+          contentType: archivo.mimetype,
+          upsert: false
+        });
+
+      if (error) {
+        throw new Error(`Error al subir "${archivo.originalname}": ${error.message}`);
+      }
+
+      nombresSubidos.push(nombreArchivo);
+    }
+
+    // Respuesta exitosa con la lista de nombres subidos
+    return res.json({
+      ok: true,
+      archivos: nombresSubidos
+    });
+
+  } catch (error) {
+    console.error('Error en /upload:', error.message);
+    return res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
 
 // ============================================
 // Ruta comodín (catch-all)
 // ============================================
-// Cualquier otra petición que no coincida con las rutas anteriores
-// también es redirigida al portal de bienvenida.
-app.get('*', (_req, res) => {
-  res.redirect(301, '/portal');
+// Cualquier otra ruta redirige al portal con el token incluido.
+app.get('*', (req, res) => {
+  res.redirect(`/portal?token=${req.query.token}`);
 });
 
 // ============================================
 // Iniciar el servidor
 // ============================================
 const server = app.listen(PORT, () => {
-  console.log(`Servidor interceptor corriendo en puerto ${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
 
 // Manejo de errores del servidor (ej: puerto en uso)

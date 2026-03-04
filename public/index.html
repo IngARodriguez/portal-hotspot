@@ -1,106 +1,214 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <title>Bienvenido - Portal WiFi</title>
-  <meta name="description" content="Portal de bienvenida para conexión WiFi.">
+  <title>Subir archivos</title>
+  <meta name="description" content="Portal de subida de archivos a la nube.">
   <style>
     /* ============================================
-       Estilos base y reset
+       Reset y variables
        ============================================ */
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
     :root {
-      --color-primary: #007AFF;
-      --color-primary-light: #4DA3FF;
-      --color-primary-dark: #0056CC;
-      --color-bg: #FFFFFF;
-      --color-text: #1C1C1E;
-      --color-text-secondary: #8E8E93;
-      --color-progress-bg: #E5E5EA;
-      --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --primary: #007AFF;
+      --primary-hover: #0062D6;
+      --primary-light: rgba(0, 122, 255, 0.08);
+      --primary-glow: rgba(0, 122, 255, 0.2);
+      --bg: #F2F2F7;
+      --card: #FFFFFF;
+      --text: #1C1C1E;
+      --text-secondary: #8E8E93;
+      --border: #E5E5EA;
+      --success: #34C759;
+      --error: #FF3B30;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
-    html, body {
+    html,
+    body {
       height: 100%;
       width: 100%;
-      overflow: hidden;
     }
 
     body {
-      font-family: var(--font-family);
-      background-color: var(--color-bg);
-      color: var(--color-text);
+      font-family: var(--font);
+      background-color: var(--bg);
+      color: var(--text);
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
+      padding: 2rem 1rem;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
 
     /* ============================================
        Contenedor principal
        ============================================ */
-    .container {
-      text-align: center;
-      padding: 2rem 1.5rem;
-      max-width: 400px;
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.75rem 1.5rem;
       width: 100%;
-      animation: fadeInUp 0.6s ease-out;
+      max-width: 440px;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* ============================================
-       Ícono WiFi
-       ============================================ */
-    .wifi-icon {
-      width: 90px;
-      height: 90px;
-      margin: 0 auto 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-      border-radius: 24px;
-      box-shadow: 0 8px 30px rgba(0, 122, 255, 0.25);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    .wifi-icon svg {
-      width: 48px;
-      height: 48px;
-      fill: #FFFFFF;
-    }
-
-    /* ============================================
-       Tipografía
+       Título
        ============================================ */
     .title {
-      font-size: 1.75rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: var(--color-text);
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
+      text-align: center;
+      margin-bottom: 1.25rem;
+      letter-spacing: -0.01em;
     }
 
-    .subtitle {
-      font-size: 1.05rem;
-      font-weight: 400;
-      color: var(--color-text-secondary);
-      margin-bottom: 2.5rem;
+    /* ============================================
+       Zona de Drag & Drop
+       ============================================ */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+      position: relative;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background-color: var(--primary-light);
+    }
+
+    .dropzone-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .dropzone-text {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
       line-height: 1.5;
     }
 
-    .redirect-message {
+    .dropzone-text span {
+      color: var(--primary);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    .dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    /* ============================================
+       Lista de archivos seleccionados
+       ============================================ */
+    .file-list {
+      list-style: none;
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .file-list.visible {
+      display: block;
+    }
+
+    .file-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border);
       font-size: 0.875rem;
-      color: var(--color-text-secondary);
-      margin-bottom: 1rem;
+    }
+
+    .file-list li:last-child {
+      border-bottom: none;
+    }
+
+    .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 0.75rem;
+      font-weight: 500;
+    }
+
+    .file-size {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+
+    /* ============================================
+       Botón de subida
+       ============================================ */
+    .upload-btn {
+      display: none;
+      width: 100%;
+      padding: 0.85rem;
+      margin-top: 1.25rem;
+      background-color: var(--primary);
+      color: #FFFFFF;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .upload-btn.visible {
+      display: block;
+    }
+
+    .upload-btn:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .upload-btn:active {
+      transform: scale(0.98);
+    }
+
+    .upload-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
     }
 
     /* ============================================
@@ -108,184 +216,284 @@
        ============================================ */
     .progress-container {
       width: 100%;
-      max-width: 260px;
       height: 6px;
-      background-color: var(--color-progress-bg);
+      background: var(--border);
       border-radius: 3px;
-      margin: 0 auto;
+      margin-top: 1rem;
       overflow: hidden;
+      display: none;
+    }
+
+    .progress-container.visible {
+      display: block;
     }
 
     .progress-bar {
       width: 0%;
       height: 100%;
-      background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
+      background: linear-gradient(90deg, var(--primary), #4DA3FF);
       border-radius: 3px;
-      animation: fillProgress 3s linear forwards;
+      transition: width 0.3s ease;
     }
 
-    /* ============================================
-       Animaciones
-       ============================================ */
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .progress-bar.indeterminate {
+      width: 40%;
+      animation: indeterminate 1.2s ease-in-out infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% {
-        box-shadow: 0 8px 30px rgba(0, 122, 255, 0.25);
+    @keyframes indeterminate {
+      0% {
+        transform: translateX(-100%);
       }
-      50% {
-        box-shadow: 0 8px 40px rgba(0, 122, 255, 0.4);
-      }
-    }
 
-    @keyframes fillProgress {
-      from {
-        width: 0%;
-      }
-      to {
-        width: 100%;
+      100% {
+        transform: translateX(350%);
       }
     }
 
     /* ============================================
-       Checkmark (se muestra al completar)
+       Mensaje de estado
        ============================================ */
-    .checkmark {
+    .status {
+      text-align: center;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+      font-weight: 500;
       display: none;
-      margin: 1.5rem auto 0;
-      width: 40px;
-      height: 40px;
-      animation: scaleIn 0.3s ease-out;
+      line-height: 1.5;
     }
 
-    .checkmark svg {
-      width: 40px;
-      height: 40px;
-    }
-
-    .checkmark.visible {
+    .status.visible {
       display: block;
     }
 
-    @keyframes scaleIn {
-      from {
-        transform: scale(0);
-        opacity: 0;
-      }
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
+    .status.uploading {
+      color: var(--text-secondary);
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .status.error {
+      color: var(--error);
     }
 
     /* ============================================
        Responsive
        ============================================ */
     @media (max-width: 360px) {
+      .card {
+        padding: 1.25rem 1rem;
+      }
+
       .title {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
       }
 
-      .subtitle {
-        font-size: 0.95rem;
-      }
-
-      .wifi-icon {
-        width: 76px;
-        height: 76px;
-        border-radius: 20px;
-      }
-
-      .wifi-icon svg {
-        width: 40px;
-        height: 40px;
+      .dropzone {
+        padding: 2rem 0.75rem;
       }
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <!-- Ícono de WiFi -->
-    <div class="wifi-icon">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <path d="M12 18c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm0-4c-1.62 0-3.07.65-4.13 1.7l1.42 1.42A3.93 3.93 0 0 1 12 16c1.11 0 2.11.45 2.83 1.17l1.42-1.42A5.92 5.92 0 0 0 12 14zm0-4c-2.73 0-5.19 1.11-6.97 2.9l1.42 1.42A7.94 7.94 0 0 1 12 12c2.21 0 4.21.9 5.66 2.34l1.42-1.42A9.94 9.94 0 0 0 12 10zm0-4c-3.83 0-7.31 1.56-9.83 4.07l1.42 1.42A11.94 11.94 0 0 1 12 8c3.33 0 6.35 1.35 8.53 3.53l1.42-1.42A13.93 13.93 0 0 0 12 6z"/>
-      </svg>
+  <div class="card">
+    <h1 class="title">📤 Subir archivos</h1>
+
+    <!-- Zona de Drag & Drop -->
+    <div class="dropzone" id="dropzone">
+      <span class="dropzone-icon">📁</span>
+      <p class="dropzone-text">
+        Arrastra archivos aquí o <span>selecciona manualmente</span>
+      </p>
+      <input type="file" id="fileInput" accept="*/*" multiple>
     </div>
 
-    <!-- Textos -->
-    <h1 class="title">Bienvenido</h1>
-    <p class="subtitle">Conectado correctamente a la red</p>
+    <!-- Lista de archivos seleccionados -->
+    <ul class="file-list" id="fileList"></ul>
 
-    <!-- Mensaje de redirección -->
-    <p class="redirect-message">Serás redirigido en <span id="countdown">3</span> segundos...</p>
+    <!-- Botón de subida -->
+    <button class="upload-btn" id="uploadBtn">Subir archivos</button>
 
     <!-- Barra de progreso -->
-    <div class="progress-container">
+    <div class="progress-container" id="progressContainer">
       <div class="progress-bar" id="progressBar"></div>
     </div>
 
-    <!-- Checkmark al completar -->
-    <div class="checkmark" id="checkmark">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#34C759" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
-    </div>
+    <!-- Mensaje de estado -->
+    <p class="status" id="statusMsg"></p>
   </div>
 
   <script>
     // ============================================
-    // Lógica de cuenta regresiva y redirección
+    // Referencias a elementos del DOM
     // ============================================
+    var dropzone = document.getElementById('dropzone');
+    var fileInput = document.getElementById('fileInput');
+    var fileList = document.getElementById('fileList');
+    var uploadBtn = document.getElementById('uploadBtn');
+    var progressContainer = document.getElementById('progressContainer');
+    var progressBar = document.getElementById('progressBar');
+    var statusMsg = document.getElementById('statusMsg');
 
-    (function () {
-      'use strict';
+    // Archivos seleccionados actualmente
+    var archivosSeleccionados = [];
 
-      var REDIRECT_URL = 'https://google.com';
-      var TOTAL_SECONDS = 3;
-      var secondsLeft = TOTAL_SECONDS;
-      var countdownEl = document.getElementById('countdown');
-      var checkmarkEl = document.getElementById('checkmark');
+    // ============================================
+    // Obtener el token desde la URL
+    // ============================================
+    function obtenerToken() {
+      var params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    }
 
-      // Actualizar la cuenta regresiva cada segundo
-      var timer = setInterval(function () {
-        secondsLeft--;
+    // ============================================
+    // Formatear tamaño de archivo (bytes → KB/MB)
+    // ============================================
+    function formatearTamano(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
 
-        // Actualizar el texto del contador
-        if (countdownEl) {
-          countdownEl.textContent = secondsLeft;
-        }
+    // ============================================
+    // Mostrar la lista de archivos seleccionados
+    // ============================================
+    function mostrarArchivos() {
+      fileList.innerHTML = '';
 
-        // Cuando llega a 0, redirigir
-        if (secondsLeft <= 0) {
-          clearInterval(timer);
+      if (archivosSeleccionados.length === 0) {
+        fileList.classList.remove('visible');
+        uploadBtn.classList.remove('visible');
+        return;
+      }
 
-          // Mostrar el checkmark antes de redirigir
-          if (checkmarkEl) {
-            checkmarkEl.classList.add('visible');
-          }
+      archivosSeleccionados.forEach(function (archivo) {
+        var li = document.createElement('li');
+        li.innerHTML =
+          '<span class="file-name">' + archivo.name + '</span>' +
+          '<span class="file-size">' + formatearTamano(archivo.size) + '</span>';
+        fileList.appendChild(li);
+      });
 
-          // Pequeño retraso para que se vea el checkmark
+      fileList.classList.add('visible');
+      uploadBtn.classList.add('visible');
+    }
+
+    // ============================================
+    // Manejar selección de archivos (input o drop)
+    // ============================================
+    function manejarArchivos(files) {
+      archivosSeleccionados = Array.from(files);
+      mostrarArchivos();
+      // Limpiar mensajes previos
+      ocultarEstado();
+    }
+
+    // Evento: selección con el input
+    fileInput.addEventListener('change', function () {
+      manejarArchivos(fileInput.files);
+    });
+
+    // ============================================
+    // Eventos de Drag & Drop
+    // ============================================
+    dropzone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', function () {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      manejarArchivos(e.dataTransfer.files);
+    });
+
+    // ============================================
+    // Mostrar mensaje de estado
+    // ============================================
+    function mostrarEstado(mensaje, tipo) {
+      statusMsg.textContent = mensaje;
+      statusMsg.className = 'status visible ' + tipo;
+    }
+
+    function ocultarEstado() {
+      statusMsg.className = 'status';
+    }
+
+    // ============================================
+    // Subir archivos al servidor
+    // ============================================
+    uploadBtn.addEventListener('click', async function () {
+      if (archivosSeleccionados.length === 0) return;
+
+      var token = obtenerToken();
+
+      // Deshabilitar controles durante la subida
+      uploadBtn.disabled = true;
+      fileInput.disabled = true;
+
+      // Mostrar progreso indeterminado y estado
+      progressContainer.classList.add('visible');
+      progressBar.classList.add('indeterminate');
+      mostrarEstado('⏳ Subiendo archivos...', 'uploading');
+
+      try {
+        // Construir FormData con los archivos seleccionados
+        var formData = new FormData();
+        archivosSeleccionados.forEach(function (archivo) {
+          formData.append('archivos', archivo);
+        });
+
+        // Enviar los archivos al servidor
+        var response = await fetch('/upload?token=' + encodeURIComponent(token), {
+          method: 'POST',
+          body: formData
+        });
+
+        var data = await response.json();
+
+        // Detener animación de progreso
+        progressBar.classList.remove('indeterminate');
+
+        if (data.ok) {
+          // Éxito: llenar barra al 100% y mostrar mensaje
+          progressBar.style.width = '100%';
+          mostrarEstado('✅ Archivos subidos correctamente', 'success');
+
+          // Limpiar después de 3 segundos
           setTimeout(function () {
-            try {
-              window.location.href = REDIRECT_URL;
-            } catch (error) {
-              // Fallback en caso de error
-              console.error('Error al redirigir:', error);
-              window.location.replace(REDIRECT_URL);
-            }
-          }, 300);
+            archivosSeleccionados = [];
+            fileInput.value = '';
+            mostrarArchivos();
+            progressContainer.classList.remove('visible');
+            progressBar.style.width = '0%';
+            ocultarEstado();
+          }, 3000);
+        } else {
+          // Error del servidor
+          progressContainer.classList.remove('visible');
+          mostrarEstado('❌ Error: ' + data.error, 'error');
         }
-      }, 1000);
-    })();
+
+      } catch (error) {
+        // Error de red o inesperado
+        progressBar.classList.remove('indeterminate');
+        progressContainer.classList.remove('visible');
+        mostrarEstado('❌ Error: ' + error.message, 'error');
+      }
+
+      // Rehabilitar controles
+      uploadBtn.disabled = false;
+      fileInput.disabled = false;
+    });
   </script>
 </body>
+
 </html>
