@@ -57,12 +57,52 @@
         }
 
         /* Título */
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
         .title {
             font-size: 1.35rem;
             font-weight: 600;
-            text-align: center;
-            margin-bottom: 1.5rem;
             color: var(--text);
+        }
+
+        .btn-reload {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--divider);
+            background: var(--bg);
+            color: var(--text-2);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-reload:hover {
+            background: var(--divider);
+        }
+
+        .btn-reload:active {
+            transform: scale(0.9);
+        }
+
+        .btn-reload.spinning {
+            animation: spin 0.6s linear;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Almacenamiento */
@@ -306,7 +346,10 @@
 
 <body>
     <div class="card">
-        <h1 class="title">Descargar archivos</h1>
+        <div class="title-row">
+            <h1 class="title">Descargar archivos</h1>
+            <button class="btn-reload" id="reloadBtn" title="Actualizar lista">↻</button>
+        </div>
 
         <div class="storage" id="storageBox">
             <p class="storage-loading" id="sLoad">Cargando…</p>
@@ -494,6 +537,15 @@
             dlStatus.textContent = total + ' archivo' + (total !== 1 ? 's' : '') + ' descargado' + (total !== 1 ? 's' : '');
             setTimeout(function () { dlStatus.className = 'dl-status'; }, 3000);
             dlAllBtn.disabled = false;
+        });
+
+        // Recargar lista
+        var reloadBtn = document.getElementById('reloadBtn');
+        reloadBtn.addEventListener('click', function () {
+            reloadBtn.classList.add('spinning');
+            Promise.all([loadFiles(), loadStorage()]).finally(function () {
+                setTimeout(function () { reloadBtn.classList.remove('spinning'); }, 600);
+            });
         });
 
         // Init
