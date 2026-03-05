@@ -1,8 +1,10 @@
 // ============================================
-// server.js - Servidor de subida de archivos
+// server.js - Servidor de subida y descarga de archivos
 // ============================================
-// Servidor Express que permite subir archivos a Supabase Storage
-// protegido por autenticación mediante token en query params.
+// Servidor Express con dos portales protegidos por token:
+//   - Portal de subida (TOKEN_UPLOAD)
+//   - Portal de descarga (TOKEN_DOWNLOAD)
+// Almacena archivos en Supabase Storage.
 // ============================================
 
 require('dotenv').config();
@@ -18,7 +20,8 @@ const app = express();
 // ============================================
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
+const TOKEN_UPLOAD = process.env.TOKEN_UPLOAD;
+const TOKEN_DOWNLOAD = process.env.TOKEN_DOWNLOAD;
 const PORT = process.env.PORT || 3000;
 
 // ============================================
@@ -27,7 +30,8 @@ const PORT = process.env.PORT || 3000;
 const variablesFaltantes = [];
 if (!SUPABASE_URL) variablesFaltantes.push('SUPABASE_URL');
 if (!SUPABASE_KEY) variablesFaltantes.push('SUPABASE_KEY');
-if (!ACCESS_TOKEN) variablesFaltantes.push('ACCESS_TOKEN');
+if (!TOKEN_UPLOAD) variablesFaltantes.push('TOKEN_UPLOAD');
+if (!TOKEN_DOWNLOAD) variablesFaltantes.push('TOKEN_DOWNLOAD');
 
 if (variablesFaltantes.length > 0) {
   console.error('Error: Faltan variables de entorno obligatorias:');
@@ -44,44 +48,48 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================
 // Configurar Multer (almacenamiento en memoria)
 // ============================================
-// Los archivos se mantienen en memoria como Buffer
-// antes de ser enviados a Supabase Storage.
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ============================================
 // Middleware de autenticación por token
 // ============================================
-// Verifica que el query param "token" coincida con ACCESS_TOKEN.
-// Se aplica a TODAS las rutas del servidor.
+// Verifica que el query param "token" sea uno de los tokens válidos.
+// Guarda el tipo de token en req.tokenType para usarlo después.
 app.use((req, res, next) => {
   const token = req.query.token;
 
-  if (token !== ACCESS_TOKEN) {
+  if (token === TOKEN_UPLOAD) {
+    req.tokenType = 'upload';
+    next();
+  } else if (token === TOKEN_DOWNLOAD) {
+    req.tokenType = 'download';
+    next();
+  } else {
     return res.status(403).json({
       ok: false,
       error: 'Acceso no autorizado'
     });
   }
-
-  next();
 });
 
 // ============================================
-// Ruta GET /portal → Sirve la página principal
+// Ruta GET /portal → Sirve la página según el token
 // ============================================
-app.get('/portal', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Si el token es de subida → upload.html
+// Si el token es de descarga → download.html
+app.get('/portal', (req, res) => {
+  if (req.tokenType === 'upload') {
+    res.sendFile(path.join(__dirname, 'public', 'upload.html'));
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'download.html'));
+  }
 });
 
 // ============================================
 // Ruta POST /upload → Subir archivos a Supabase
 // ============================================
-// Acepta hasta 10 archivos simultáneos con el campo "archivos".
-// Cada archivo se sube al bucket "archivos" en Supabase Storage
-// con un nombre único basado en timestamp + nombre original.
 app.post('/upload', upload.array('archivos', 10), async (req, res) => {
   try {
-    // Verificar que se recibieron archivos
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         ok: false,
@@ -91,7 +99,6 @@ app.post('/upload', upload.array('archivos', 10), async (req, res) => {
 
     const nombresSubidos = [];
 
-    // Subir cada archivo a Supabase Storage
     for (const archivo of req.files) {
       const nombreArchivo = `${Date.now()}-${archivo.originalname}`;
 
@@ -109,7 +116,6 @@ app.post('/upload', upload.array('archivos', 10), async (req, res) => {
       nombresSubidos.push(nombreArchivo);
     }
 
-    // Respuesta exitosa con la lista de nombres subidos
     return res.json({
       ok: true,
       archivos: nombresSubidos
@@ -125,31 +131,64 @@ app.post('/upload', upload.array('archivos', 10), async (req, res) => {
 });
 
 // ============================================
-// Ruta GET /storage-status → Estado del almacenamiento
+// Ruta GET /files → Lista de archivos con URLs de descarga
 // ============================================
-// Lista todos los archivos en el bucket y calcula el uso total.
-app.get('/storage-status', async (_req, res) => {
+app.get('/files', async (_req, res) => {
   try {
-    // Listar todos los archivos del bucket "archivos"
     const { data, error } = await supabase.storage
       .from('archivos')
       .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
-    // Filtrar solo archivos (excluir carpetas placeholder)
     const archivos = (data || []).filter((item) => item.id);
 
-    // Calcular el tamaño total usado
+    const archivosList = archivos.map((a) => {
+      const { data: urlData } = supabase.storage
+        .from('archivos')
+        .getPublicUrl(a.name);
+
+      return {
+        nombre: a.name,
+        tamano: a.metadata?.size || 0,
+        fecha: a.created_at,
+        url: urlData.publicUrl
+      };
+    });
+
+    return res.json({
+      ok: true,
+      archivos: archivosList
+    });
+
+  } catch (error) {
+    console.error('Error en /files:', error.message);
+    return res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
+// Ruta GET /storage-status → Estado del almacenamiento
+// ============================================
+app.get('/storage-status', async (_req, res) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from('archivos')
+      .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+
+    if (error) throw new Error(error.message);
+
+    const archivos = (data || []).filter((item) => item.id);
     const totalBytes = archivos.reduce((acc, archivo) => acc + (archivo.metadata?.size || 0), 0);
 
     return res.json({
       ok: true,
       totalArchivos: archivos.length,
       usado: totalBytes,
-      limite: 1073741824, // 1 GB en bytes (plan gratuito Supabase)
+      limite: 1073741824,
       archivos: archivos.map((a) => ({
         nombre: a.name,
         tamano: a.metadata?.size || 0,
@@ -169,7 +208,6 @@ app.get('/storage-status', async (_req, res) => {
 // ============================================
 // Ruta comodín (catch-all)
 // ============================================
-// Cualquier otra ruta redirige al portal con el token incluido.
 app.get('*', (req, res) => {
   res.redirect(`/portal?token=${req.query.token}`);
 });
@@ -181,7 +219,6 @@ const server = app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
 });
 
-// Manejo de errores del servidor (ej: puerto en uso)
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
     console.error(`\nError: El puerto ${PORT} ya está en uso.`);

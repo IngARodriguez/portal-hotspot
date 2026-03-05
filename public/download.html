@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Descargar archivos</title>
+    <meta name="description" content="Portal de descarga de archivos desde la nube.">
+    <style>
+        /* ============================================
+       Reset y variables
+       ============================================ */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #007AFF;
+            --primary-hover: #0062D6;
+            --primary-light: rgba(0, 122, 255, 0.08);
+            --bg: #F2F2F7;
+            --card: #FFFFFF;
+            --text: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --text-tertiary: #AEAEB2;
+            --border: #E5E5EA;
+            --success: #34C759;
+            --error: #FF3B30;
+            --radius: 14px;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            font-family: var(--font);
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ============================================
+       Contenedor principal
+       ============================================ */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.75rem 1.5rem;
+            width: 100%;
+            max-width: 440px;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Título */
+        .title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 1.25rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* ============================================
+       Almacenamiento
+       ============================================ */
+        .storage-section {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .storage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .storage-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .storage-detail {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .storage-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .storage-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #4DA3FF);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .storage-bar-fill.warning {
+            background: linear-gradient(90deg, #FF9500, #FF3B30);
+        }
+
+        .storage-files {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+        }
+
+        .storage-loading {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 0.25rem 0;
+        }
+
+        /* ============================================
+       Botón descargar todos
+       ============================================ */
+        .download-all-btn {
+            display: none;
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            background-color: var(--primary);
+            color: #FFFFFF;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .download-all-btn.visible {
+            display: block;
+        }
+
+        .download-all-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .download-all-btn:active {
+            transform: scale(0.98);
+        }
+
+        .download-all-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ============================================
+       Lista de archivos
+       ============================================ */
+        .files-container {
+            max-height: 55vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            gap: 0.75rem;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-info-name {
+            font-size: 0.875rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-info-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .file-download-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary);
+            color: #FFFFFF;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background-color 0.2s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .file-download-btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .file-download-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* ============================================
+       Estado vacío y cargando
+       ============================================ */
+        .loading-msg,
+        .empty-msg,
+        .error-msg {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .loading-msg .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-icon,
+        .error-icon {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-msg {
+            color: var(--error);
+        }
+
+        /* ============================================
+       Estado de descarga masiva
+       ============================================ */
+        .download-status {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            display: none;
+        }
+
+        .download-status.visible {
+            display: block;
+        }
+
+        /* ============================================
+       Responsive
+       ============================================ */
+        @media (max-width: 360px) {
+            .card {
+                padding: 1.25rem 1rem;
+            }
+
+            .title {
+                font-size: 1.3rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <h1 class="title">📥 Descargar archivos</h1>
+
+        <!-- Estado del almacenamiento -->
+        <div class="storage-section" id="storageSection">
+            <p class="storage-loading" id="storageLoading">Cargando almacenamiento...</p>
+            <div id="storageContent" style="display:none;">
+                <div class="storage-header">
+                    <span class="storage-label">💾 Almacenamiento</span>
+                    <span class="storage-detail" id="storageText">-- / --</span>
+                </div>
+                <div class="storage-bar-bg">
+                    <div class="storage-bar-fill" id="storageBarFill" style="width:0%"></div>
+                </div>
+                <p class="storage-files" id="storageFiles">0 archivos</p>
+            </div>
+        </div>
+
+        <!-- Botón descargar todos -->
+        <button class="download-all-btn" id="downloadAllBtn">⬇️ Descargar todos</button>
+
+        <!-- Estado de descarga masiva -->
+        <p class="download-status" id="downloadStatus"></p>
+
+        <!-- Contenedor de archivos -->
+        <div id="filesContainer">
+            <div class="loading-msg" id="loadingMsg">
+                <span class="spinner"></span>
+                <br>Cargando archivos...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // Referencias al DOM
+        // ============================================
+        var filesContainer = document.getElementById('filesContainer');
+        var loadingMsg = document.getElementById('loadingMsg');
+        var downloadAllBtn = document.getElementById('downloadAllBtn');
+        var downloadStatus = document.getElementById('downloadStatus');
+
+        // Datos de archivos cargados
+        var archivosData = [];
+
+        // ============================================
+        // Obtener token de la URL
+        // ============================================
+        function obtenerToken() {
+            return new URLSearchParams(window.location.search).get('token') || '';
+        }
+
+        // ============================================
+        // Formatear tamaño (bytes → KB/MB/GB)
+        // ============================================
+        function formatearTamano(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+            return (bytes / 1073741824).toFixed(2) + ' GB';
+        }
+
+        // ============================================
+        // Formatear fecha
+        // ============================================
+        function formatearFecha(fechaStr) {
+            try {
+                var fecha = new Date(fechaStr);
+                return fecha.toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                }) + ' · ' + fecha.toLocaleTimeString('es-ES', {
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch (e) {
+                return '';
+            }
+        }
+
+        // ============================================
+        // Obtener ícono según extensión
+        // ============================================
+        function obtenerIcono(nombre) {
+            var ext = nombre.split('.').pop().toLowerCase();
+            var iconos = {
+                pdf: '📄', doc: '📝', docx: '📝', txt: '📃',
+                xls: '📊', xlsx: '📊', csv: '📊',
+                png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', webp: '🖼️', svg: '🖼️',
+                mp4: '🎬', mov: '🎬', avi: '🎬', mkv: '🎬',
+                mp3: '🎵', wav: '🎵', ogg: '🎵',
+                zip: '📦', rar: '📦', '7z': '📦', tar: '📦',
+                js: '💻', html: '💻', css: '💻', py: '💻', json: '💻',
+                apk: '📱', exe: '⚙️', dmg: '💿'
+            };
+            return iconos[ext] || '📎';
+        }
+
+        // ============================================
+        // Extraer nombre legible (quitar timestamp)
+        // ============================================
+        function nombreLegible(nombre) {
+            // Los archivos se guardan como "timestamp-nombre.ext"
+            var match = nombre.match(/^\d+-(.+)$/);
+            return match ? match[1] : nombre;
+        }
+
+        // ============================================
+        // Cargar almacenamiento
+        // ============================================
+        var storageLoading = document.getElementById('storageLoading');
+        var storageContent = document.getElementById('storageContent');
+        var storageText = document.getElementById('storageText');
+        var storageBarFill = document.getElementById('storageBarFill');
+        var storageFiles = document.getElementById('storageFiles');
+
+        async function cargarAlmacenamiento() {
+            try {
+                var token = obtenerToken();
+                var response = await fetch('/storage-status?token=' + encodeURIComponent(token));
+                var data = await response.json();
+                if (!data.ok) throw new Error(data.error);
+
+                var porcentaje = (data.usado / data.limite) * 100;
+                storageText.textContent = formatearTamano(data.usado) + ' / ' + formatearTamano(data.limite);
+                storageBarFill.style.width = Math.min(porcentaje, 100).toFixed(1) + '%';
+                storageFiles.textContent = data.totalArchivos + ' archivo' + (data.totalArchivos !== 1 ? 's' : '');
+
+                if (porcentaje > 80) storageBarFill.classList.add('warning');
+                else storageBarFill.classList.remove('warning');
+
+                storageLoading.style.display = 'none';
+                storageContent.style.display = 'block';
+            } catch (e) {
+                storageLoading.textContent = '⚠️ No se pudo cargar';
+            }
+        }
+
+        // ============================================
+        // Cargar lista de archivos
+        // ============================================
+        async function cargarArchivos() {
+            try {
+                var token = obtenerToken();
+                var response = await fetch('/files?token=' + encodeURIComponent(token));
+                var data = await response.json();
+
+                if (!data.ok) throw new Error(data.error);
+
+                archivosData = data.archivos;
+                renderizarArchivos();
+
+            } catch (error) {
+                filesContainer.innerHTML =
+                    '<div class="error-msg">' +
+                    '<span class="error-icon">❌</span>' +
+                    'Error al cargar archivos<br>' +
+                    '<small>' + error.message + '</small>' +
+                    '</div>';
+            }
+        }
+
+        // ============================================
+        // Renderizar lista de archivos
+        // ============================================
+        function renderizarArchivos() {
+            filesContainer.innerHTML = '';
+
+            if (archivosData.length === 0) {
+                filesContainer.innerHTML =
+                    '<div class="empty-msg">' +
+                    '<span class="empty-icon">📭</span>' +
+                    'No hay archivos subidos' +
+                    '</div>';
+                downloadAllBtn.classList.remove('visible');
+                return;
+            }
+
+            // Mostrar botón de descargar todos
+            downloadAllBtn.classList.add('visible');
+
+            var wrapper = document.createElement('div');
+            wrapper.className = 'files-container';
+
+            archivosData.forEach(function (archivo) {
+                var item = document.createElement('div');
+                item.className = 'file-item';
+
+                var nombreDisplay = nombreLegible(archivo.nombre);
+
+                item.innerHTML =
+                    '<div class="file-icon">' + obtenerIcono(archivo.nombre) + '</div>' +
+                    '<div class="file-info">' +
+                    '<div class="file-info-name" title="' + nombreDisplay + '">' + nombreDisplay + '</div>' +
+                    '<div class="file-info-meta">' +
+                    formatearTamano(archivo.tamano) +
+                    (archivo.fecha ? ' · ' + formatearFecha(archivo.fecha) : '') +
+                    '</div>' +
+                    '</div>' +
+                    '<button class="file-download-btn" title="Descargar" data-url="' + archivo.url + '" data-name="' + nombreDisplay + '">↓</button>';
+
+                wrapper.appendChild(item);
+            });
+
+            filesContainer.appendChild(wrapper);
+
+            // Eventos de descarga individual
+            wrapper.querySelectorAll('.file-download-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    descargarArchivo(btn.getAttribute('data-url'), btn.getAttribute('data-name'));
+                });
+            });
+        }
+
+        // ============================================
+        // Descargar un archivo individual
+        // ============================================
+        function descargarArchivo(url, nombre) {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = nombre;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // ============================================
+        // Descargar todos los archivos
+        // ============================================
+        downloadAllBtn.addEventListener('click', async function () {
+            if (archivosData.length === 0) return;
+
+            downloadAllBtn.disabled = true;
+            var total = archivosData.length;
+
+            for (var i = 0; i < total; i++) {
+                var archivo = archivosData[i];
+                var nombre = nombreLegible(archivo.nombre);
+
+                // Mostrar progreso
+                downloadStatus.textContent = '⬇️ Descargando ' + (i + 1) + ' de ' + total + '...';
+                downloadStatus.classList.add('visible');
+
+                descargarArchivo(archivo.url, nombre);
+
+                // Pequeña pausa entre descargas para no saturar
+                if (i < total - 1) {
+                    await new Promise(function (resolve) { setTimeout(resolve, 500); });
+                }
+            }
+
+            downloadStatus.textContent = '✅ ' + total + ' archivo' + (total !== 1 ? 's' : '') + ' descargado' + (total !== 1 ? 's' : '');
+            setTimeout(function () {
+                downloadStatus.classList.remove('visible');
+            }, 3000);
+
+            downloadAllBtn.disabled = false;
+        });
+
+        // ============================================
+        // Inicializar al cargar la página
+        // ============================================
+        cargarAlmacenamiento();
+        cargarArchivos();
+    </script>
+</body>
+
+</html>
