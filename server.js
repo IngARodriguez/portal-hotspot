@@ -125,6 +125,48 @@ app.post('/upload', upload.array('archivos', 10), async (req, res) => {
 });
 
 // ============================================
+// Ruta GET /storage-status → Estado del almacenamiento
+// ============================================
+// Lista todos los archivos en el bucket y calcula el uso total.
+app.get('/storage-status', async (_req, res) => {
+  try {
+    // Listar todos los archivos del bucket "archivos"
+    const { data, error } = await supabase.storage
+      .from('archivos')
+      .list('', { limit: 1000, sortBy: { column: 'created_at', order: 'desc' } });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // Filtrar solo archivos (excluir carpetas placeholder)
+    const archivos = (data || []).filter((item) => item.id);
+
+    // Calcular el tamaño total usado
+    const totalBytes = archivos.reduce((acc, archivo) => acc + (archivo.metadata?.size || 0), 0);
+
+    return res.json({
+      ok: true,
+      totalArchivos: archivos.length,
+      usado: totalBytes,
+      limite: 1073741824, // 1 GB en bytes (plan gratuito Supabase)
+      archivos: archivos.map((a) => ({
+        nombre: a.name,
+        tamano: a.metadata?.size || 0,
+        fecha: a.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error en /storage-status:', error.message);
+    return res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================
 // Ruta comodín (catch-all)
 // ============================================
 // Cualquier otra ruta redirige al portal con el token incluido.
