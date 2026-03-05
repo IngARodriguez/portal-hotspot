@@ -213,6 +213,34 @@ app.get('/download', async (req, res) => {
 });
 
 // ============================================
+// Ruta DELETE /delete → Eliminar archivo de Supabase
+// ============================================
+// Uso: DELETE /delete?token=xxx&file=nombre-del-archivo.ext
+app.delete('/delete', async (req, res) => {
+  try {
+    const fileName = req.query.file;
+
+    if (!fileName) {
+      return res.status(400).json({ ok: false, error: 'Falta el parámetro "file"' });
+    }
+
+    const { error } = await supabase.storage
+      .from('archivos')
+      .remove([fileName]);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return res.json({ ok: true, mensaje: 'Archivo eliminado correctamente' });
+
+  } catch (error) {
+    console.error('Error en /delete:', error.message);
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ============================================
 // Ruta GET /storage-status → Estado del almacenamiento
 // ============================================
 app.get('/storage-status', async (_req, res) => {

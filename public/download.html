@@ -260,6 +260,31 @@
             transform: scale(0.9);
         }
 
+        .file-delete-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--error);
+            color: #FFFFFF;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background-color 0.2s, transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .file-delete-btn:hover {
+            background-color: #D62D22;
+        }
+
+        .file-delete-btn:active {
+            transform: scale(0.9);
+        }
+
         /* ============================================
        Estado vacío y cargando
        ============================================ */
@@ -529,7 +554,8 @@
                     (archivo.fecha ? ' · ' + formatearFecha(archivo.fecha) : '') +
                     '</div>' +
                     '</div>' +
-                    '<button class="file-download-btn" title="Descargar" data-file="' + archivo.nombre + '" data-name="' + nombreDisplay + '">↓</button>';
+                    '<button class="file-download-btn" title="Descargar" data-file="' + archivo.nombre + '">↓</button>' +
+                    '<button class="file-delete-btn" title="Eliminar" data-file="' + archivo.nombre + '" data-name="' + nombreDisplay + '">✕</button>';
 
                 wrapper.appendChild(item);
             });
@@ -540,6 +566,17 @@
             wrapper.querySelectorAll('.file-download-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     descargarArchivo(btn.getAttribute('data-file'));
+                });
+            });
+
+            // Eventos de eliminación individual
+            wrapper.querySelectorAll('.file-delete-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var nombre = btn.getAttribute('data-name');
+                    var file = btn.getAttribute('data-file');
+                    if (confirm('¿Eliminar "' + nombre + '"?')) {
+                        eliminarArchivo(file);
+                    }
                 });
             });
         }
@@ -556,6 +593,27 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+        }
+
+        // ============================================
+        // Eliminar un archivo
+        // ============================================
+        async function eliminarArchivo(fileName) {
+            try {
+                var token = obtenerToken();
+                var response = await fetch('/delete?token=' + encodeURIComponent(token) + '&file=' + encodeURIComponent(fileName), {
+                    method: 'DELETE'
+                });
+                var data = await response.json();
+
+                if (!data.ok) throw new Error(data.error);
+
+                // Recargar la lista y el almacenamiento
+                cargarArchivos();
+                cargarAlmacenamiento();
+            } catch (error) {
+                alert('Error al eliminar: ' + error.message);
+            }
         }
 
         // ============================================
