@@ -171,6 +171,48 @@ app.get('/files', async (_req, res) => {
 });
 
 // ============================================
+// Ruta GET /download → Proxy de descarga de archivos
+// ============================================
+// Descarga el archivo desde Supabase y lo reenvía al cliente
+// con headers de descarga (Content-Disposition: attachment).
+// Uso: /download?token=xxx&file=nombre-del-archivo.ext
+app.get('/download', async (req, res) => {
+  try {
+    const fileName = req.query.file;
+
+    if (!fileName) {
+      return res.status(400).json({ ok: false, error: 'Falta el parámetro "file"' });
+    }
+
+    // Descargar el archivo desde Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('archivos')
+      .download(fileName);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    // Convertir el Blob a Buffer
+    const buffer = Buffer.from(await data.arrayBuffer());
+
+    // Extraer nombre legible (quitar timestamp del inicio)
+    const match = fileName.match(/^\d+-(.+)$/);
+    const nombreDescarga = match ? match[1] : fileName;
+
+    // Enviar el archivo al cliente con headers de descarga
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(nombreDescarga)}"`);
+    res.setHeader('Content-Type', data.type || 'application/octet-stream');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Error en /download:', error.message);
+    return res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ============================================
 // Ruta GET /storage-status → Estado del almacenamiento
 // ============================================
 app.get('/storage-status', async (_req, res) => {
